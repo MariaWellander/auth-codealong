@@ -1,14 +1,18 @@
 import express from 'express'
 import bodyParser from 'body-parser'
 import cors from 'cors'
+// Using 3 different libraries
 import mongoose from 'mongoose'
 import crypto from 'crypto'
 import bcrypt from 'bcrypt-nodejs'
 
+
+// connected to our database
 const mongoUrl = process.env.MONGO_URL || "mongodb://localhost/auth"
 mongoose.connect(mongoUrl, { useNewUrlParser: true, useUnifiedTopology: true})
 mongoose.Promise = Promise
 
+// created a user model with some validation rules (unique & required) and a default access token (default) using the crypto library
 const User = mongoose.model('User', {
   name: {
     type: String,
@@ -28,6 +32,7 @@ const User = mongoose.model('User', {
   }
 });
 
+// created a middleware function which looks up the user based on the accessToken stored in the header, which we can test via Postman. Calling the next() function which allows the protected endpoint to continue execution.
 const authenticateUser = async (req, res, next) => {
   const user = await User.findOne({accessToken: req.header('Authorization')});
   if (user) {
@@ -54,6 +59,7 @@ app.get('/', (req, res) => {
   res.send('Hello world')
 })
 
+// created a registration endpoint where we can assign a name, email and password to our user in the database. (Remember not to store passwords in plain text or clear text!)
 app.post('/users', async (req, res) => {
   try {
     const {name, email, password} = req.body;
@@ -66,11 +72,13 @@ app.post('/users', async (req, res) => {
   }
 });
 
+// created a secret endpoint which could do anything but right now just returns a message. But this is the endpoint which is protected by our authenticateUser, so the user needs to be authenticated before being able to access it.
 app.get('/secrets', authenticateUser);
 app.get('/secrets', (req, res) =>{
   res.json({secret: 'This is a super secret message.'});
 });
 
+// created a login endpoint which is called sessions. Which does essentially the same as the registration endpoint except it does not creates the user it finds one. 
 app.post('/sessions', async (req, res) => {
   const user = await User.findOne({email: req.body.email});
   if (user && bcrypt.compareSync(req.body.password , user.password)) {
